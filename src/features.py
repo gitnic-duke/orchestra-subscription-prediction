@@ -115,6 +115,55 @@ def ticket_features(tickets):
 
 
 # ---------------------------------------------------------------------------
+# Donations and other account info (account.csv)
+# ---------------------------------------------------------------------------
+
+# Donations dated on/after this day may come after (or with) the 2014-15
+# subscription purchase, i.e. they could leak the answer.
+DONATION_CUTOFF = pd.Timestamp("2014-01-01")
+
+
+def simplify_relationship(relationship):
+    """Group the 10 relationship labels into 3: Education / Vendor / Other."""
+    rel = relationship.copy()
+    rel[rel.str.startswith("Vendor", na=False)] = "Vendor"
+    rel[rel.notna() & ~rel.isin(["Vendor", "Education Participant"])] = "Other"
+    return rel.astype(pd.CategoricalDtype(["Education Participant", "Vendor", "Other"]))
+
+
+def account_features(accounts, remove_2014_donors):
+    """
+    Donation history plus relationship type and whether we have an address.
+
+    remove_2014_donors: if True, patrons whose FIRST donation is dated 2014
+    are treated as non-donors (lifetime amount and count set to 0). Their
+    donations happened during the 2014-15 renewal period, and many look like
+    gifts added when buying the subscription, which would leak the label.
+    This is only a partial fix: patrons who first donated earlier may also
+    have 2014 gifts inside their lifetime totals, and we can't separate those.
+    """
+    acc = accounts.set_index("account.id").copy()
+
+    if remove_2014_donors:
+        late = acc["first.donated"] >= DONATION_CUTOFF
+        acc.loc[late, ["amount.donated.lifetime", "no.donations.lifetime"]] = 0
+        acc.loc[late, "first.donated"] = pd.NaT
+
+    feats = pd.DataFrame(index=acc.index)
+    feats["don_amount_2013"] = acc["amount.donated.2013"]
+    feats["don_amount_lifetime"] = acc["amount.donated.lifetime"]
+    feats["don_n_lifetime"] = acc["no.donations.lifetime"]
+    # Average gift size (NaN for non-donors, so it's not confused with tiny gifts)
+    feats["don_avg_amount"] = (acc["amount.donated.lifetime"]
+                               / acc["no.donations.lifetime"].replace(0, float("nan")))
+    feats["don_first_year"] = acc["first.donated"].dt.year
+
+    feats["acct_relationship"] = simplify_relationship(acc["relationship"])
+    feats["acct_has_billing_zip"] = acc["billing.zip.code"].notna().astype(int)
+    return feats
+
+
+# ---------------------------------------------------------------------------
 # Put it all together
 # ---------------------------------------------------------------------------
 
@@ -124,7 +173,10 @@ ZERO_FILL_COLUMNS = ["sub_n_seasons", "sub_n_last5", "sub_last_streak",
                      "tix_n_purchases", "tix_n_seasons", "tix_total_seats",
                      "tix_family_concert", "tix_2013"]
 
-ALL_GROUPS = ["subscriptions", "tickets"]
+# Default feature set. Donations are used as given ("donations_raw"), including
+# the 2014 first donations that partly leak the label: chosen deliberately for
+# the competition score; see the writeup for the clean-vs-raw comparison.
+ALL_GROUPS = ["subscriptions", "tickets", "donations_raw"]
 
 
 def build_features(account_ids, groups=ALL_GROUPS):
@@ -141,6 +193,10 @@ def build_features(account_ids, groups=ALL_GROUPS):
         X = X.join(subscription_features(load_data.load_subscriptions()))
     if "tickets" in groups:
         X = X.join(ticket_features(load_data.load_tickets()))
+    if "donations" in groups:          # 2014 first-time donors removed
+        X = X.join(account_features(load_data.load_accounts(), remove_2014_donors=True))
+    if "donations_raw" in groups:      # account.csv as given
+        X = X.join(account_features(load_data.load_accounts(), remove_2014_donors=False))
 
     fill_cols = [c for c in ZERO_FILL_COLUMNS if c in X.columns]
     X[fill_cols] = X[fill_cols].fillna(0)

@@ -51,6 +51,17 @@ EXPERIMENTS = {
         "model": models.gradient_boosting,
         "notes": "HGB regularized, subscription + ticket features",
     },
+    # --- Step 3: add donation/account features, raw vs. leak-cleaned ---
+    "hgb_reg_sub_tix_don_raw": {
+        "groups": ["subscriptions", "tickets", "donations_raw"], "columns": None,
+        "model": models.gradient_boosting,
+        "notes": "HGB regularized, sub + tix + donations as given (incl. 2014 first donations)",
+    },
+    "hgb_reg_sub_tix_don": {
+        "groups": ["subscriptions", "tickets", "donations"], "columns": None,
+        "model": models.gradient_boosting,
+        "notes": "HGB regularized, sub + tix + donations with 2014 first-time donors removed",
+    },
 }
 
 

@@ -6,3 +6,5 @@ timestamp,experiment,cv_auc_mean,cv_auc_std,notes
 2026-11-03 17:16,hgb_reg_sub_basic,0.9592,0.0118,"HGB regularized, 4 basic subscription features"
 2026-11-03 17:16,hgb_reg_sub_all,0.9585,0.0112,"HGB regularized, all subscription features"
 2026-11-03 17:16,hgb_reg_sub_tix,0.9652,0.0146,"HGB regularized, subscription + ticket features"
+2026-11-03 17:29,hgb_reg_sub_tix_don_raw,0.9769,0.0091,"HGB regularized, sub + tix + donations as given (incl. 2014 first donations)"
+2026-11-03 17:29,hgb_reg_sub_tix_don,0.9722,0.0117,"HGB regularized, sub + tix + donations with 2014 first-time donors removed"
