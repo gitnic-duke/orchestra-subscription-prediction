@@ -86,14 +86,45 @@ def subscription_features(subs):
 
 
 # ---------------------------------------------------------------------------
+# Single-ticket purchases (2010-11 to 2013-14)
+# ---------------------------------------------------------------------------
+
+def ticket_features(tickets):
+    """
+    Summarize each patron's single-ticket purchases.
+
+    Marketing source is left out: it is missing for 78% of purchases and
+    showed no clear relationship with subscribing.
+    """
+    tickets = tickets[tickets["season_year"] < TARGET_SEASON_START]
+    by_account = tickets.groupby("account.id")
+    years = by_account["season_year"]
+
+    feats = pd.DataFrame({
+        "tix_n_purchases": by_account.size(),
+        "tix_n_seasons": years.nunique(),
+        "tix_last_season": years.max(),
+        "tix_total_seats": by_account["no.seats"].sum(),
+        "tix_mean_price_level": by_account["price.level"].mean(),
+        "tix_family_concert": by_account["location"].apply(
+            lambda loc: int((loc == "Family concert").any())),
+    })
+    feats["tix_seasons_since_last"] = TARGET_SEASON_START - feats["tix_last_season"]
+    feats["tix_2013"] = (feats["tix_last_season"] == LAST_SEASON).astype(int)
+    return feats
+
+
+# ---------------------------------------------------------------------------
 # Put it all together
 # ---------------------------------------------------------------------------
 
 # Filled with 0 when a patron has no rows in that table
 ZERO_FILL_COLUMNS = ["sub_n_seasons", "sub_n_last5", "sub_last_streak",
-                     "sub_2013", "sub_2012"]
+                     "sub_2013", "sub_2012",
+                     "tix_n_purchases", "tix_n_seasons", "tix_total_seats",
+                     "tix_family_concert", "tix_2013"]
 
-ALL_GROUPS = ["subscriptions"]
+ALL_GROUPS = ["subscriptions", "tickets"]
 
 
 def build_features(account_ids, groups=ALL_GROUPS):
@@ -108,6 +139,8 @@ def build_features(account_ids, groups=ALL_GROUPS):
 
     if "subscriptions" in groups:
         X = X.join(subscription_features(load_data.load_subscriptions()))
+    if "tickets" in groups:
+        X = X.join(ticket_features(load_data.load_tickets()))
 
     fill_cols = [c for c in ZERO_FILL_COLUMNS if c in X.columns]
     X[fill_cols] = X[fill_cols].fillna(0)
