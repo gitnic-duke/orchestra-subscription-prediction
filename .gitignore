@@ -1,0 +1,11 @@
+# Raw competition data (download from Kaggle into data/)
+data/*.csv
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
