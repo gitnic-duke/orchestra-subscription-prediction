@@ -15,7 +15,7 @@ import sys
 
 from src import load_data, models
 from src.evaluate import cv_auc, log_result
-from src.features import ALL_GROUPS, build_features
+from src.features import ALL_GROUPS, SELECTED_FEATURES, build_features
 
 BASIC_SUB_COLUMNS = ["sub_last_season", "sub_first_season",
                      "sub_n_seasons", "sub_seasons_since_last"]
@@ -83,6 +83,12 @@ EXPERIMENTS = {
         "groups": ALL_GROUPS, "columns": None,
         "model": models.gradient_boosting,
         "notes": "HGB regularized, final feature set",
+    },
+    # --- Step 6: the 8 selected features ---
+    "hgb_reg_selected": {
+        "groups": ALL_GROUPS, "columns": SELECTED_FEATURES,
+        "model": models.gradient_boosting,
+        "notes": "HGB regularized, 8 selected features",
     },
 }
 

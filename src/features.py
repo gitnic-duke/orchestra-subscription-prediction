@@ -224,6 +224,20 @@ ZERO_FILL_COLUMNS = ["sub_n_seasons", "sub_n_last5", "sub_last_streak",
 # population did not help in cross-validation.
 ALL_GROUPS = ["subscriptions", "tickets", "donations_raw", "distance"]
 
+# Final feature set chosen in feature selection (feature_selection.py): the 8
+# features with held-out permutation importance > 0.0002. As accurate as all
+# 31 features in cross-validation, with much less room to overfit.
+SELECTED_FEATURES = [
+    "sub_last_season",        # most recent season subscribed
+    "sub_first_season",       # first season subscribed
+    "sub_last_streak",        # length of the unbroken run ending at the last subscription
+    "sub_last_location",      # venue of the last subscription
+    "tix_mean_price_level",   # average price level of single tickets bought
+    "don_first_year",         # year of first donation (partly leaky, see writeup)
+    "don_n_lifetime",         # number of donations ever
+    "geo_miles_to_concerts",  # distance to the nearest concert city (missing = no address)
+]
+
 
 def build_features(account_ids, groups=ALL_GROUPS):
     """
