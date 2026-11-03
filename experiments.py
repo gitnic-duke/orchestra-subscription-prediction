@@ -15,7 +15,7 @@ import sys
 
 from src import load_data, models
 from src.evaluate import cv_auc, log_result
-from src.features import build_features
+from src.features import ALL_GROUPS, build_features
 
 BASIC_SUB_COLUMNS = ["sub_last_season", "sub_first_season",
                      "sub_n_seasons", "sub_seasons_since_last"]
@@ -67,6 +67,22 @@ EXPERIMENTS = {
         "groups": ["subscriptions", "tickets", "donations_raw", "geography"], "columns": None,
         "model": models.gradient_boosting,
         "notes": "HGB regularized, sub + tix + raw donations + geography",
+    },
+    # --- Step 5: compare algorithms on the chosen feature set (ALL_GROUPS) ---
+    "logreg": {
+        "groups": ALL_GROUPS, "columns": None,
+        "model": models.logistic_regression,
+        "notes": "Logistic regression (C=1), final feature set",
+    },
+    "random_forest": {
+        "groups": ALL_GROUPS, "columns": None,
+        "model": models.random_forest,
+        "notes": "Random forest (500 trees, min leaf 5), final feature set",
+    },
+    "hgb_reg": {
+        "groups": ALL_GROUPS, "columns": None,
+        "model": models.gradient_boosting,
+        "notes": "HGB regularized, final feature set",
     },
 }
 

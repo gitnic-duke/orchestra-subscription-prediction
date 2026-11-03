@@ -220,7 +220,9 @@ ZERO_FILL_COLUMNS = ["sub_n_seasons", "sub_n_last5", "sub_last_streak",
 # Default feature set. Donations are used as given ("donations_raw"), including
 # the 2014 first donations that partly leak the label: chosen deliberately for
 # the competition score; see the writeup for the clean-vs-raw comparison.
-ALL_GROUPS = ["subscriptions", "tickets", "donations_raw"]
+# Of the geography features only distance to concerts is kept: zip income and
+# population did not help in cross-validation.
+ALL_GROUPS = ["subscriptions", "tickets", "donations_raw", "distance"]
 
 
 def build_features(account_ids, groups=ALL_GROUPS):
@@ -241,8 +243,11 @@ def build_features(account_ids, groups=ALL_GROUPS):
         X = X.join(account_features(load_data.load_accounts(), remove_2014_donors=True))
     if "donations_raw" in groups:      # account.csv as given
         X = X.join(account_features(load_data.load_accounts(), remove_2014_donors=False))
-    if "geography" in groups:
+    if "geography" in groups:          # all 4 geography features
         X = X.join(geography_features(load_data.load_accounts(), load_data.load_zipcodes()))
+    if "distance" in groups:           # only distance to the concert cities
+        geo = geography_features(load_data.load_accounts(), load_data.load_zipcodes())
+        X = X.join(geo[["geo_miles_to_concerts"]])
 
     fill_cols = [c for c in ZERO_FILL_COLUMNS if c in X.columns]
     X[fill_cols] = X[fill_cols].fillna(0)

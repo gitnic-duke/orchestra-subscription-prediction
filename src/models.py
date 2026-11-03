@@ -1,10 +1,76 @@
 """
 Model definitions. Each function returns a fresh, untrained scikit-learn model,
 so every experiment builds its model the same way.
+
+Gradient boosting works on the feature table directly. Logistic regression
+and random forest need some preprocessing first (missing values, categorical
+columns), so they are wrapped in scikit-learn Pipelines. Because the
+preprocessing sits inside the pipeline, it is re-fit on each CV training
+fold, so nothing leaks from the validation fold.
 """
-from sklearn.ensemble import HistGradientBoostingClassifier
+import numpy as np
+from sklearn.compose import ColumnTransformer, make_column_selector
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import (FunctionTransformer, OneHotEncoder,
+                                   OrdinalEncoder, StandardScaler)
 
 from src.config import RANDOM_SEED
+
+# Column groups, picked by name/type so the models work with any feature set
+MONEY_COLUMNS = make_column_selector(pattern=r"^don_(?:amount|avg)")   # very skewed $
+CATEGORICAL_COLUMNS = make_column_selector(dtype_include="category")
+OTHER_NUMERIC_COLUMNS = make_column_selector(pattern=r"^(?!don_(?:amount|avg))",
+                                             dtype_exclude="category")
+
+
+def logistic_regression():
+    """
+    Regularized logistic regression: a simple linear baseline model.
+
+    Preprocessing it needs:
+    - money columns: log(1 + x), since lifetime donations range from $0 to $1.2M
+      and a linear model would otherwise be dominated by a few huge donors
+    - missing values: filled with the median, plus a 0/1 "was missing" column,
+      so "never subscribed" still gets its own weight
+    - all numeric columns standardized (mean 0, std 1) so the L2 penalty
+      treats them equally
+    - categorical columns: one-hot encoded (missing becomes its own category)
+    """
+    numeric = make_pipeline(SimpleImputer(strategy="median", add_indicator=True),
+                            StandardScaler())
+    money = make_pipeline(FunctionTransformer(np.log1p), numeric)
+    categorical = make_pipeline(
+        SimpleImputer(strategy="constant", fill_value="missing"),
+        OneHotEncoder(handle_unknown="ignore"))
+    preprocess = ColumnTransformer([
+        ("money", money, MONEY_COLUMNS),
+        ("numeric", numeric, OTHER_NUMERIC_COLUMNS),
+        ("categorical", categorical, CATEGORICAL_COLUMNS),
+    ])
+    return make_pipeline(preprocess, LogisticRegression(C=1.0, max_iter=5000))
+
+
+def random_forest():
+    """
+    Random forest: many deep trees on random subsets of rows and features,
+    averaged. A different way of combining trees than boosting.
+
+    Missing values are handled natively by scikit-learn's random forest.
+    Categorical columns are converted to integer codes (missing = -1).
+    Reasonable settings, not tuned: 500 trees, at least 5 patrons per leaf,
+    sqrt(#features) candidate features per split.
+    """
+    categorical = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1,
+                                 encoded_missing_value=-1)
+    preprocess = ColumnTransformer(
+        [("categorical", categorical, CATEGORICAL_COLUMNS)],
+        remainder="passthrough")
+    return make_pipeline(preprocess, RandomForestClassifier(
+        n_estimators=500, min_samples_leaf=5, max_features="sqrt",
+        n_jobs=-1, random_state=RANDOM_SEED))
 
 
 def gradient_boosting_default():
