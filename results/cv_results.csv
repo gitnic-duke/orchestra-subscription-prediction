@@ -1,3 +1,5 @@
 timestamp,experiment,cv_auc_mean,cv_auc_std,notes
 2026-10-31 17:21,baseline_recency_rule,0.9351,0.0188,"rank by last season subscribed, then # seasons"
 2026-11-03 16:59,baseline_recency_rule,0.9351,0.0188,"rank by last season subscribed, then # seasons"
+2026-11-03 17:07,hgb_sub_basic,0.9512,0.0149,"HGB defaults, 4 basic subscription features"
+2026-11-03 17:07,hgb_sub_all,0.9505,0.012,"HGB defaults, all subscription features"
