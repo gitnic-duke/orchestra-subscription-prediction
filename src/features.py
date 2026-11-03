@@ -13,6 +13,7 @@ Patrons with no history in a table get NaN for that table's features
 Count-type features and yes/no flags are filled with 0 instead, since
 "no rows" really means zero purchases.
 """
+import numpy as np
 import pandas as pd
 
 from src.config import TARGET_SEASON_START
@@ -164,6 +165,49 @@ def account_features(accounts, remove_2014_donors):
 
 
 # ---------------------------------------------------------------------------
+# Geography (billing zip joined to zipcodes.csv)
+# ---------------------------------------------------------------------------
+
+# Cities where concerts were held in the recent seasons (2011-12 to 2013-14).
+# Approximate city-center coordinates; zipcodes.csv only has 2-decimal lat/long anyway.
+CONCERT_CITIES = {
+    "San Francisco": (37.78, -122.42),
+    "Berkeley": (37.87, -122.27),
+    "Palo Alto (Peninsula)": (37.44, -122.14),
+}
+
+
+def miles_between(lat1, lon1, lat2, lon2):
+    """Great-circle distance in miles (haversine formula)."""
+    lat1, lon1, lat2, lon2 = map(np.radians, [lat1, lon1, lat2, lon2])
+    a = (np.sin((lat2 - lat1) / 2) ** 2
+         + np.cos(lat1) * np.cos(lat2) * np.sin((lon2 - lon1) / 2) ** 2)
+    return 3959 * 2 * np.arcsin(np.sqrt(a))
+
+
+def geography_features(accounts, zipcodes):
+    """
+    Where the patron lives, from their billing zip code (shipping zip is 99%
+    missing). Accounts whose zip is missing or not a US zip get NaN.
+    """
+    geo = (accounts[["account.id", "billing.zip.code"]]
+           .merge(zipcodes, left_on="billing.zip.code", right_on="zip", how="left")
+           .set_index("account.id"))
+
+    feats = pd.DataFrame(index=geo.index)
+    # Distance to the closest concert city: far-away patrons rarely subscribe
+    feats["geo_miles_to_concerts"] = np.min(
+        [miles_between(geo["Lat"], geo["Long"], lat, lon)
+         for lat, lon in CONCERT_CITIES.values()], axis=0)
+    # Average income in the zip code (total wages / number of tax returns)
+    feats["geo_avg_wage"] = geo["TotalWages"] / geo["TaxReturnsFiled"]
+    feats["geo_population"] = geo["EstimatedPopulation"]
+    feats["geo_in_california"] = (geo["State"] == "CA").astype(float)
+    feats.loc[geo["State"].isna(), "geo_in_california"] = np.nan   # unknown, not "no"
+    return feats
+
+
+# ---------------------------------------------------------------------------
 # Put it all together
 # ---------------------------------------------------------------------------
 
@@ -197,6 +241,8 @@ def build_features(account_ids, groups=ALL_GROUPS):
         X = X.join(account_features(load_data.load_accounts(), remove_2014_donors=True))
     if "donations_raw" in groups:      # account.csv as given
         X = X.join(account_features(load_data.load_accounts(), remove_2014_donors=False))
+    if "geography" in groups:
+        X = X.join(geography_features(load_data.load_accounts(), load_data.load_zipcodes()))
 
     fill_cols = [c for c in ZERO_FILL_COLUMNS if c in X.columns]
     X[fill_cols] = X[fill_cols].fillna(0)

@@ -62,6 +62,12 @@ EXPERIMENTS = {
         "model": models.gradient_boosting,
         "notes": "HGB regularized, sub + tix + donations with 2014 first-time donors removed",
     },
+    # --- Step 4: add geography features (on top of the raw-donations set) ---
+    "hgb_reg_sub_tix_don_raw_geo": {
+        "groups": ["subscriptions", "tickets", "donations_raw", "geography"], "columns": None,
+        "model": models.gradient_boosting,
+        "notes": "HGB regularized, sub + tix + raw donations + geography",
+    },
 }
 
 
