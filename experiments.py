@@ -90,6 +90,17 @@ EXPERIMENTS = {
         "model": models.gradient_boosting,
         "notes": "HGB regularized, 8 selected features",
     },
+    # --- Step 7: tuned models on the 8 selected features ---
+    "hgb_tuned_selected": {
+        "groups": ALL_GROUPS, "columns": SELECTED_FEATURES,
+        "model": models.gradient_boosting_tuned,
+        "notes": "HGB tuned (depth 2, lr 0.05, 400 trees, min leaf 20, L2 10, max_features 0.75), 8 features",
+    },
+    "logreg_tuned_selected": {
+        "groups": ALL_GROUPS, "columns": SELECTED_FEATURES,
+        "model": models.logistic_regression_tuned,
+        "notes": "Logistic regression tuned (C=3), 8 features",
+    },
 }
 
 

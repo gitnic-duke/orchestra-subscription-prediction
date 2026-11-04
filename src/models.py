@@ -26,7 +26,7 @@ OTHER_NUMERIC_COLUMNS = make_column_selector(pattern=r"^(?!don_(?:amount|avg))",
                                              dtype_exclude="category")
 
 
-def logistic_regression():
+def logistic_regression(C=1.0):
     """
     Regularized logistic regression: a simple linear baseline model.
 
@@ -50,7 +50,16 @@ def logistic_regression():
         ("numeric", numeric, OTHER_NUMERIC_COLUMNS),
         ("categorical", categorical, CATEGORICAL_COLUMNS),
     ])
-    return make_pipeline(preprocess, LogisticRegression(C=1.0, max_iter=5000))
+    return make_pipeline(preprocess, LogisticRegression(C=C, max_iter=5000))
+
+
+def logistic_regression_tuned():
+    """
+    Logistic regression with the regularization strength chosen by grid search
+    (tune.py): C = 3, i.e. a weak penalty. CV AUROC on the 8 selected features:
+    0.9785 (vs 0.9778 at the default C = 1).
+    """
+    return logistic_regression(C=3.0)
 
 
 def random_forest():
@@ -110,6 +119,32 @@ def gradient_boosting():
         max_iter=200,
         min_samples_leaf=40,
         l2_regularization=1.0,
+        categorical_features="from_dtype",
+        random_state=RANDOM_SEED,
+    )
+
+
+def gradient_boosting_tuned():
+    """
+    Gradient boosting with the settings chosen by randomized search over 60
+    combinations (tune.py), on the 8 selected features. CV AUROC 0.9805
+    (vs 0.9797 for the hand-picked settings above).
+
+    - max_depth=2: very shallow trees (each captures at most a pairwise
+      interaction); all of the top 3 settings used depth 2
+    - learning_rate=0.05 with max_iter=400 trees
+    - min_samples_leaf=20
+    - l2_regularization=10: strong shrinkage of leaf values
+    - max_features=0.75: each split considers a random 75% of the features,
+      which adds variety between trees (like a random forest)
+    """
+    return HistGradientBoostingClassifier(
+        max_depth=2,
+        learning_rate=0.05,
+        max_iter=400,
+        min_samples_leaf=20,
+        l2_regularization=10.0,
+        max_features=0.75,
         categorical_features="from_dtype",
         random_state=RANDOM_SEED,
     )
