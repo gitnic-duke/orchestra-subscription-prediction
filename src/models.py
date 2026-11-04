@@ -9,6 +9,8 @@ preprocessing sits inside the pipeline, it is re-fit on each CV training
 fold, so nothing leaks from the validation fold.
 """
 import numpy as np
+from scipy.stats import rankdata
+from sklearn.base import BaseEstimator, ClassifierMixin, clone
 from sklearn.compose import ColumnTransformer, make_column_selector
 from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.impute import SimpleImputer
@@ -148,3 +150,51 @@ def gradient_boosting_tuned():
         categorical_features="from_dtype",
         random_state=RANDOM_SEED,
     )
+
+
+class AverageEnsemble(ClassifierMixin, BaseEstimator):
+    """
+    Combine several models by a weighted average of their predictions.
+
+    method="probability" (default): weighted average of predicted probabilities.
+    method="rank": each model's scores are first turned into ranks (scaled to
+    0-1, computed within the set of patrons being predicted), then averaged.
+
+    We tested both (ensemble.py). Probability averaging won: ~87% of patrons
+    have a boosting probability under 1% and almost none of them subscribe.
+    Ranks spread those patrons evenly from 0 to 0.87, so tiny, meaningless
+    differences among near-certain non-subscribers count as much as the real
+    gap between, say, 0.3% and 30%. Averaging probabilities keeps that gap.
+    """
+
+    def __init__(self, estimators, weights, method="probability"):
+        self.estimators = estimators
+        self.weights = weights
+        self.method = method
+
+    def fit(self, X, y):
+        self.fitted_ = [clone(est).fit(X, y) for est in self.estimators]
+        self.classes_ = np.array([0, 1])
+        return self
+
+    def predict_proba(self, X):
+        scores = []
+        for model in self.fitted_:
+            p = model.predict_proba(X)[:, 1]
+            if self.method == "rank":
+                p = rankdata(p) / len(p)          # ranks scaled to (0, 1]
+            scores.append(p)
+        combined = np.average(scores, axis=0, weights=self.weights)
+        return np.column_stack([1 - combined, combined])
+
+
+def ensemble(weight_boosting=0.5, method="probability"):
+    """
+    Tuned gradient boosting + tuned logistic regression, weighted average.
+    Best in ensemble.py: probability average, 50/50 -> CV AUROC 0.9812
+    (boosting alone 0.9805; better on all 4 sets of folds tested).
+    """
+    return AverageEnsemble(
+        estimators=[gradient_boosting_tuned(), logistic_regression_tuned()],
+        weights=[weight_boosting, 1 - weight_boosting],
+        method=method)

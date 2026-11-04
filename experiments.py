@@ -101,6 +101,12 @@ EXPERIMENTS = {
         "model": models.logistic_regression_tuned,
         "notes": "Logistic regression tuned (C=3), 8 features",
     },
+    # --- Step 8: ensemble (tested in ensemble.py) ---
+    "ensemble_prob_50_50": {
+        "groups": ALL_GROUPS, "columns": SELECTED_FEATURES,
+        "model": models.ensemble,     # 50/50 probability average
+        "notes": "Probability average of tuned HGB and tuned logreg (50/50), 8 features",
+    },
 }
 
 
